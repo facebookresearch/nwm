@@ -1,0 +1,35 @@
+run_name: wm_debug_bs_32_
+
+# training setup
+results_dir: logs
+use_wandb: True # set to false if you don't want to log to wandb
+train: True
+batch_size: 4
+num_workers: 12
+target_fps: 4
+model: CDiT-XL/2
+lr: 8e-5
+cross_attend: 0
+
+# normalization for the action space
+normalize: True
+grad_clip_val: 10.0
+# context
+context_size: 4
+
+# distance bounds for distance and action and distance predictions 
+distance:
+  min_dist_cat: -64
+  max_dist_cat: 64
+
+# action output params
+len_traj_pred: 64
+
+# dataset specific parameters
+image_size: 224
+datasets:
+  recon:
+    data_folder: /checkpoint/amaia/video/amirbar/processed_datasets/recon
+    train: data_splits/recon/train/ # path to train folder with traj_names.txt
+    test: data_splits/recon/test/ # path to test folder with traj_names.txt
+    goals_per_obs: 4 # how many goals are sampled per observation

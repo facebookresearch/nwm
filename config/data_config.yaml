@@ -1,0 +1,18 @@
+action_stats:
+  min: [-2.5, -4] # [min_dx, min_dy]
+  max: [5, 4] # [max_dx, max_dy]
+
+recon:
+  metric_waypoint_spacing: 0.25 # average spacing between waypoints (meters)
+
+scand:
+  metric_waypoint_spacing: 0.38
+
+tartan_drive:
+  metric_waypoint_spacing: 0.72
+
+go_stanford:
+  metric_waypoint_spacing: 0.12
+
+sacson:
+  metric_waypoint_spacing: 0.255

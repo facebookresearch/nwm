@@ -1,0 +1,12 @@
+recon:
+  mu: [-0.1, 0, 0]
+  var_scale: [0.02, 0.1, 0.1]
+tartan_drive:
+  mu: [0.5, 0, 0]
+  var_scale: [0.07, 0.1, 0.1]
+scand:
+  mu: [-0.25, 0, 0]
+  var_scale: [0.04, 0.1, 0.1]
+sacson:
+  mu: [-0.33, 0, 0]
+  var_scale: [0.03, 0.1, 0.1]

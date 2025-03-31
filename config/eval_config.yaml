@@ -1,0 +1,35 @@
+trajectory_eval_distance:
+  min_dist_cat: 8
+  max_dist_cat: 8
+trajectory_eval_len_traj_pred: 8
+trajectory_eval_context_size: 4
+traj_stride: 8
+
+# distance bounds for distance and action and distance predictions 
+eval_distance:
+  eval_min_dist_cat: -64
+  eval_max_dist_cat: 64
+eval_len_traj_pred: 64
+eval_context_size: 4
+
+eval_datasets:
+  recon:
+    data_folder: /checkpoint/amaia/video/amirbar/processed_datasets/recon
+    test: data_splits/recon/test/
+    goals_per_obs: 4
+  tartan_drive:
+    data_folder: /checkpoint/amaia/video/amirbar/processed_datasets/tartan_320
+    test: data_splits/tartan_drive/test/
+    goals_per_obs: 4
+  sacson:
+    data_folder: /checkpoint/amaia/video/amirbar/processed_datasets/sacson_320
+    test: data_splits/sacson/test
+    goals_per_obs: 4
+  scand:
+    data_folder: /checkpoint/amaia/video/amirbar/processed_datasets/scand_320
+    test: data_splits/scand/test
+    goals_per_obs: 4
+  go_stanford:
+    data_folder: /checkpoint/amaia/video/amirbar/processed_datasets/go_stanford
+    test: data_splits/go_stanford/test/
+    goals_per_obs: 4

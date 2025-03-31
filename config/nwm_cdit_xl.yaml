@@ -1,0 +1,48 @@
+run_name: default
+
+# training setup
+results_dir: /checkpoint/amaia/video/amirbar/checkpoints/nwm/logs/paper_ablations
+use_wandb: True # set to false if you don't want to log to wandb
+train: True
+batch_size: 16
+num_workers: 12
+target_fps: 4
+model: CDiT-XL/2
+lr: 8e-5
+
+# normalization for the action space
+normalize: True
+grad_clip_val: 10.0
+context_size: 4
+
+# distance bounds for distance and action and distance predictions 
+distance:
+  min_dist_cat: -64
+  max_dist_cat: 64
+
+# action output params
+len_traj_pred: 64
+
+# dataset specific parameters
+image_size: 224
+datasets:
+  recon:
+    data_folder: /checkpoint/amaia/video/amirbar/processed_datasets/recon
+    train: data_splits/recon/train/ # path to train folder with traj_names.txt
+    test: data_splits/recon/test/ # path to test folder with traj_names.txt
+    goals_per_obs: 4 # how many goals are sampled per observation
+  tartan_drive:
+    data_folder: /checkpoint/amaia/video/amirbar/processed_datasets/tartan_320
+    train: data_splits/tartan/train/
+    test: data_splits/tartan/test/
+    goals_per_obs: 4 # how many goals are sampled per observation
+  sacson:
+    data_folder: /checkpoint/amaia/video/amirbar/processed_datasets/sacson_320
+    train: data_splits/sacson/train
+    test: data_splits/sacson/test
+    goals_per_obs: 4 # how many goals are sampled per observation
+  scand:
+    data_folder: /checkpoint/amaia/video/amirbar/processed_datasets/scand_320
+    train: data_splits/scand/train
+    test: data_splits/scand/test
+    goals_per_obs: 4 # how many goals are sampled per observation
