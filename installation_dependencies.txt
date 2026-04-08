@@ -1,0 +1,14 @@
+pip install timm diffusers accelerate matplotlib onnxscript onnxruntime-gpu torcheval tensorrt
+
+
+cuda 13:
+pip install --pre --index-url https://aiinfra.pkgs.visualstudio.com/PublicPackages/_packaging/ort-cuda-13-nightly/pypi/simple/ onnxruntime-gpu
+
+
+cuda 12:
+tensorrt-cu12==10.16.0.72
+tensorrt-cu12-libs==10.16.0.72
+tensorrt-cu12-bindings==10.16.0.72
+
+
+git clone https://github.com/facebookresearch/nwm

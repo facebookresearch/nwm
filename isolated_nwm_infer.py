@@ -63,7 +63,7 @@ def get_dataset_eval(config, dataset_name, eval_type, predefined_index=True):
     return dataset
 
 @torch.no_grad()
-def model_forward_wrapper(all_models, curr_obs, curr_delta, num_timesteps, latent_size, device, num_cond, num_goals=1, rel_t=None, progress=False):
+def model_forward_wrapper(all_models, curr_obs, curr_delta, num_timesteps, latent_size, device, num_cond, num_goals=1, rel_t=None, progress=False, use_ddim=False):
     model, diffusion, vae = all_models
     x = curr_obs.to(device)
     y = curr_delta.to(device)
@@ -80,10 +80,15 @@ def model_forward_wrapper(all_models, curr_obs, curr_delta, num_timesteps, laten
         x_cond = x[:, :num_cond].unsqueeze(1).expand(B, num_goals, num_cond, x.shape[2], x.shape[3], x.shape[4]).flatten(0, 1)
         z = torch.randn(B*num_goals, 4, latent_size, latent_size, device=device)
         y = y.flatten(0, 1)
-        model_kwargs = dict(y=y, x_cond=x_cond, rel_t=rel_t)      
-        samples = diffusion.p_sample_loop(
-                model.forward, z.shape, z, clip_denoised=False, model_kwargs=model_kwargs, progress=progress, device=device
-        )
+        model_kwargs = dict(y=y, x_cond=x_cond, rel_t=rel_t)
+        if use_ddim:
+            samples = diffusion.ddim_sample_loop(
+                    model.forward, z.shape, z, clip_denoised=False, model_kwargs=model_kwargs, progress=progress, device=device, eta=0.0
+            )
+        else:
+            samples = diffusion.p_sample_loop(
+                    model.forward, z.shape, z, clip_denoised=False, model_kwargs=model_kwargs, progress=progress, device=device
+            )
         samples = vae.decode(samples / 0.18215).sample
 
         return torch.clip(samples, -1., 1.)
@@ -99,7 +104,7 @@ def generate_rollout(args, output_dir, rollout_fps, idxs, all_models, obs_image,
         if args.gt:
             x_pred_pixels = gt_image[:, i].clone().to(device)
         else:
-            x_pred_pixels = model_forward_wrapper(all_models, curr_obs, curr_delta, rollout_stride, args.latent_size, num_cond=num_cond, num_goals=1, device=device)
+            x_pred_pixels = model_forward_wrapper(all_models, curr_obs, curr_delta, rollout_stride, args.latent_size, num_cond=num_cond, num_goals=1, device=device, use_ddim=getattr(args, 'lcm', False))
 
         curr_obs = torch.cat((curr_obs, x_pred_pixels.unsqueeze(1)), dim=1) # append current prediction
         curr_obs = curr_obs[:, 1:] # remove first observation
@@ -112,7 +117,7 @@ def generate_time(args, output_dir, idxs, all_models, obs_image, gt_output, delt
         if args.gt:
             x_pred_pixels = gt_output[:, timestep-1].clone().to(device)
         else:
-            x_pred_pixels = model_forward_wrapper(all_models, obs_image, curr_delta, timestep, args.latent_size, num_cond=num_cond, num_goals=1, device=device)
+            x_pred_pixels = model_forward_wrapper(all_models, obs_image, curr_delta, timestep, args.latent_size, num_cond=num_cond, num_goals=1, device=device, use_ddim=getattr(args, 'lcm', False))
         visualize_preds(output_dir, idxs, sec, x_pred_pixels)
 
 def visualize_preds(output_dir, idxs, sec, x_pred_pixels):
@@ -125,7 +130,7 @@ def visualize_preds(output_dir, idxs, sec, x_pred_pixels):
 
 @torch.no_grad
 def main(args):
-    _, _, device, _ = init_distributed()
+    _, _, device, _ = dist.init_distributed()
     print(args)
     device = torch.device(device)
     num_tasks = dist.get_world_size()
@@ -158,14 +163,23 @@ def main(args):
     num_cond = config['context_size']
     print("loading")
     model_lst = (None, None, None)
+    use_ddim = getattr(args, 'lcm', False)
     if not args.gt:
         model = CDiT_models[config['model']](context_size=num_cond, input_size=latent_size, in_channels=4)
-        ckp = torch.load(f'{config["results_dir"]}/{config["run_name"]}/checkpoints/{args.ckp}.pth.tar', map_location='cpu', weights_only=False)
-        print(model.load_state_dict(ckp["ema"], strict=True))
+        if args.lcm:
+            # LCM mode: load distilled checkpoint, use fewer steps + DDIM
+            ckp = torch.load(args.lcm_ckpt, map_location='cpu', weights_only=False)
+            print(model.load_state_dict(ckp["ema"], strict=True))
+            lcm_steps = ckp.get("student_steps", args.lcm_steps)
+            diffusion = create_diffusion(str(lcm_steps))
+            print(f"LCM mode: {lcm_steps} steps, DDIM sampling")
+        else:
+            ckp = torch.load(f'{config["results_dir"]}/{config["run_name"]}/checkpoints/{args.ckp}.pth.tar', map_location='cpu', weights_only=False)
+            print(model.load_state_dict(ckp["ema"], strict=True))
+            diffusion = create_diffusion(str(250))
         model.eval()
         model.to(device)
         model = torch.compile(model)
-        diffusion = create_diffusion(str(250))
         vae = AutoencoderKL.from_pretrained(f"stabilityai/sd-vae-ft-ema").to(device)
         model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[device], find_unused_parameters=False)
         model_lst = (model, diffusion, vae)
@@ -175,7 +189,7 @@ def main(args):
     datasets = {}
 
     for dataset_name in dataset_names:
-        dataset_val = get_dataset_eval(config, dataset_name, args.eval_type, predefined_index=True)
+        dataset_val = get_dataset_eval(config, dataset_name, args.eval_type, predefined_index=False)
 
         if len(dataset_val) % num_tasks != 0:
             print('Warning: Enabling distributed evaluation with an eval dataset not divisible by process number. '
@@ -234,6 +248,10 @@ if __name__ == "__main__":
     # Rollout Evaluation Args
     parser.add_argument("--rollout_fps_values", type=str, default='1,4', help="")
     parser.add_argument("--gt", type=int, default=0, help="set to 1 to produce ground truth evaluation set")
+    # LCM distilled model arguments
+    parser.add_argument("--lcm", action="store_true", help="use LCM-distilled model with DDIM sampling")
+    parser.add_argument("--lcm-ckpt", type=str, default=None, help="path to merged distilled checkpoint")
+    parser.add_argument("--lcm-steps", type=int, default=62, help="number of inference steps for LCM model")
     args = parser.parse_args()
     
     args.rollout_fps_values = [int(fps) for fps in args.rollout_fps_values.split(',')]

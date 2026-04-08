@@ -1,0 +1,58 @@
+model: CDiT-S/2
+teacher_checkpoint: cdit_s_100000.pth.tar
+
+# LoRA config
+lora_rank: 16
+lora_alpha: 16
+
+# Training
+lr: 1e-4
+batch_size: 4
+num_workers: 8
+distill_steps: 10000
+grad_clip_val: 10.0
+
+# Model / data dimensions
+image_size: 224
+context_size: 4
+normalize: True
+
+# Dataset — SACSon only for PoC
+datasets:
+  sacson:
+    data_folder: data/sacson
+    train: data_splits/sacson_distill/train
+    goals_per_obs: 4
+
+eval_datasets:
+  sacson:
+    data_folder: data/sacson
+    test: data_splits/sacson_distill/train
+    goals_per_obs: 4
+
+eval_distance:
+  eval_min_dist_cat: -64
+  eval_max_dist_cat: 64
+
+eval_len_traj_pred: 64
+traj_stride: 1
+eval_context_size: 4
+
+# Distance bounds (same as main training)
+distance:
+  min_dist_cat: -64
+  max_dist_cat: 64
+len_traj_pred: 64
+
+# Round configs
+round_1:
+  teacher_steps: 250
+  student_steps: 125
+
+round_2:
+  teacher_steps: 124
+  student_steps: 62
+
+# Results
+results_dir: logs
+run_name: lcm_distill_sacson

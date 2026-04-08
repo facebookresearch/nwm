@@ -8,3 +8,4 @@ models
 nwm/data
 data_splits/**/dataset*.pkl
 data
+junk
